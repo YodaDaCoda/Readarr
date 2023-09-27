@@ -26,6 +26,8 @@ namespace NzbDrone.Core.MediaFiles
         public string Book { get; set; }
         public uint Disc { get; set; }
         public uint DiscCount { get; set; }
+        public string Series { get; set; }
+        public string SeriesPart { get; set; }
         public string Media { get; set; }
         public DateTime? Date { get; set; }
         public DateTime? OriginalReleaseDate { get; set; }
@@ -106,6 +108,8 @@ namespace NzbDrone.Core.MediaFiles
                     Media = id3tag.GetTextAsString("TMED");
                     Date = ReadId3Date(id3tag, "TDRC");
                     OriginalReleaseDate = ReadId3Date(id3tag, "TDOR");
+                    Series = id3tag.GetTextAsString("MVNM");
+                    SeriesPart = id3tag.GetTextAsString("MVIN");
                 }
                 else if (file.TagTypesOnDisk.HasFlag(TagTypes.Xiph))
                 {
@@ -116,6 +120,8 @@ namespace NzbDrone.Core.MediaFiles
                     Date = DateTime.TryParse(flactag.GetField("DATE").ExclusiveOrDefault(), out tempDate) ? tempDate : default(DateTime?);
                     OriginalReleaseDate = DateTime.TryParse(flactag.GetField("ORIGINALDATE").ExclusiveOrDefault(), out tempDate) ? tempDate : default(DateTime?);
                     Publisher = flactag.GetField("LABEL").ExclusiveOrDefault();
+                    Series = flactag.GetField("MOVEMENTNAME").ExclusiveOrDefault();
+                    SeriesPart = flactag.GetField("MOVEMENT").ExclusiveOrDefault();
                 }
                 else if (file.TagTypesOnDisk.HasFlag(TagTypes.Ape))
                 {
@@ -124,6 +130,8 @@ namespace NzbDrone.Core.MediaFiles
                     Date = DateTime.TryParse(apetag.GetItem("Year")?.ToString(), out tempDate) ? tempDate : default(DateTime?);
                     OriginalReleaseDate = DateTime.TryParse(apetag.GetItem("Original Date")?.ToString(), out tempDate) ? tempDate : default(DateTime?);
                     Publisher = apetag.GetItem("Label")?.ToString();
+                    Series = apetag.GetItem("MOVEMENTNAME")?.ToString();
+                    SeriesPart = apetag.GetItem("MOVEMENT")?.ToString();
                 }
                 else if (file.TagTypesOnDisk.HasFlag(TagTypes.Asf))
                 {
@@ -139,6 +147,8 @@ namespace NzbDrone.Core.MediaFiles
                     Media = appletag.GetDashBox("com.apple.iTunes", "MEDIA");
                     Date = DateTime.TryParse(appletag.DataBoxes(FixAppleId("day")).FirstOrDefault()?.Text, out tempDate) ? tempDate : default(DateTime?);
                     OriginalReleaseDate = DateTime.TryParse(appletag.GetDashBox("com.apple.iTunes", "Original Date"), out tempDate) ? tempDate : default(DateTime?);
+                    Series = appletag.GetText(FixAppleId("mvn")).FirstOrDefault() ?? appletag.GetDashBox("com.pilabor.tone", "SERIES");
+                    SeriesPart = appletag.GetText(FixAppleId("mvi")).FirstOrDefault() ?? appletag.GetDashBox("com.pilabor.tone", "PART");
                 }
 
                 OriginalYear = OriginalReleaseDate.HasValue ? (uint)OriginalReleaseDate?.Year : 0;
@@ -339,6 +349,8 @@ namespace NzbDrone.Core.MediaFiles
                     id3tag.SetTextFrame("TMED", Media);
                     WriteId3Date(id3tag, "TDRC", "TYER", "TDAT", Date);
                     WriteId3Date(id3tag, "TDOR", "TORY", null, OriginalReleaseDate);
+                    id3tag.SetTextFrame("MVNM", Series);
+                    id3tag.SetTextFrame("MVIN", SeriesPart);
                 }
                 else if (file.TagTypes.HasFlag(TagTypes.Xiph))
                 {
@@ -360,6 +372,8 @@ namespace NzbDrone.Core.MediaFiles
                     flactag.SetField("TOTALDISCS", DiscCount);
                     flactag.SetField("MEDIA", Media);
                     flactag.SetField("LABEL", Publisher);
+                    flactag.SetField("MOVEMENTNAME", Series);
+                    flactag.SetField("MOVEMENT", SeriesPart);
                 }
                 else if (file.TagTypes.HasFlag(TagTypes.Ape))
                 {
@@ -370,6 +384,8 @@ namespace NzbDrone.Core.MediaFiles
                     apetag.SetValue("Original Year", OriginalReleaseDate.HasValue ? OriginalReleaseDate.Value.Year.ToString() : null);
                     apetag.SetValue("Media", Media);
                     apetag.SetValue("Label", Publisher);
+                    apetag.SetValue("MOVEMENTNAME", Series);
+                    apetag.SetValue("MOVEMENT", SeriesPart);
                 }
                 else if (file.TagTypes.HasFlag(TagTypes.Asf))
                 {
@@ -389,6 +405,10 @@ namespace NzbDrone.Core.MediaFiles
                     appletag.SetDashBox("com.apple.iTunes", "Original Date", OriginalReleaseDate.HasValue ? OriginalReleaseDate.Value.ToString("yyyy-MM-dd") : null);
                     appletag.SetDashBox("com.apple.iTunes", "Original Year", OriginalReleaseDate.HasValue ? OriginalReleaseDate.Value.Year.ToString() : null);
                     appletag.SetDashBox("com.apple.iTunes", "MEDIA", Media);
+                    appletag.SetText(FixAppleId("mvn"), Series);
+                    appletag.SetText(FixAppleId("mvi"), SeriesPart);
+                    appletag.SetDashBox("com.pilabor.tone", "SERIES", Series);
+                    appletag.SetDashBox("com.pilabor.tone", "PART", SeriesPart);
                 }
 
                 file.Save();
@@ -464,6 +484,16 @@ namespace NzbDrone.Core.MediaFiles
             if (DiscCount != other.DiscCount)
             {
                 output.Add("Disc Count", Tuple.Create(DiscCount.ToString(), other.DiscCount.ToString()));
+            }
+
+            if (Series != other.Series)
+            {
+                output.Add("Series", Tuple.Create(Series, other.Series));
+            }
+
+            if (SeriesPart != other.SeriesPart)
+            {
+                output.Add("Series Part", Tuple.Create(SeriesPart, other.SeriesPart));
             }
 
             if (Media != other.Media)

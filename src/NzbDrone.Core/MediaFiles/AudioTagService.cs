@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using NLog;
 using NzbDrone.Common.Disk;
+using NzbDrone.Common.Extensions;
 using NzbDrone.Common.Instrumentation.Extensions;
 using NzbDrone.Core.Books;
 using NzbDrone.Core.Configuration;
@@ -73,6 +74,7 @@ namespace NzbDrone.Core.MediaFiles
             var book = edition.Book.Value;
             var author = book.Author.Value;
             var partCount = edition.BookFiles.Value.Count;
+            var series = book.SeriesLinks.Value.OrderBy(x => x.SeriesPosition).FirstOrDefault(x => x.Series.Value.Title.IsNotNullOrWhiteSpace());
 
             var fileTags = ReadAudioTag(trackfile.Path);
 
@@ -104,6 +106,8 @@ namespace NzbDrone.Core.MediaFiles
                 Book = book.Title,
                 Disc = fileTags.Disc,
                 DiscCount = fileTags.DiscCount,
+                Series = series?.Series.Value.Title,
+                SeriesPart = series?.Position,
 
                 // We may have omitted media so index in the list isn't the same as medium number
                 Media = fileTags.Media,
